@@ -3,41 +3,119 @@ const app = express();
 const port = process.env.PORT || 3000;
 const bodyParser = require('body-parser');
 const date = require(__dirname + '/date.js');
+const mongoose = require('mongoose');
 
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-const items = ["buy food", "cook food", "eat food"];
-const workItems = [];
+mongoose.connect(
+	"mongodb+srv://admin-josh:zq5Ya0El2Q0IvTVN@cluster0.vwcttrg.mongodb.net/todolistDB",
+	{ useNewUrlParser: true }
+);
+const itemSchema = {
+    name: {
+        type: String,
+        required: [true, "You cannot insert an empty list item."]
+    }
+};
+const Item = mongoose.model("Item", itemSchema);
+
+const item1 = new Item({
+    name: "Welcome to your To Do List!"
+});
+
+const item2 = new Item({
+	name: "Hit the + button to add a new item."
+});
+
+const item3 = new Item({
+	name: "<-- Hit this to delete an item."
+});
+
+const defaultItems = [item1, item2, item3];
+
+const listSchema = {
+    name: String,
+    items: [itemSchema]
+};
+
+const List = mongoose.model("List", listSchema);
 
 app.get("/", (req, res) => {
 
-    const day = date.getDate();
+    const listTitle = date.getDate();
 
-    res.render("list", { listTitle: day, listItems: items});
+    res.redirect("/" + listTitle);
 });
 
-app.post("/", (req, res) => {
+app.get("/:listName", (req, res) => {
+    const listName = req.params.listName;
+    
+    List.findOne({name: listName}, (err, foundList) => {
+        
+        if(err)
+        {
+            console.log(err);
+            return;
+        }
 
-    const item = req.body.newItem;
-
-    if(req.body.list === "Work"){
-        if (item) 
-            workItems.push(item);
-        res.redirect("/work");
-    } else {
-        if (item) 
-            items.push(item);
-        res.redirect("/");
-    }
+        if(!foundList){
+            // Create a new list
+            const list = new List({
+                name: listName,
+                items: defaultItems
+            });
+        
+            list.save();
+            res.redirect("/" + listName);
+        } else {
+            // Show an existing list
+            res.render("list", { 
+                listId: foundList.id,
+                listTitle: foundList.name, 
+                listItems: foundList.items 
+            });
+        }
+    });
 });
 
-app.get("/work", (req, res) => {
+app.post("/add", (req, res) => {
 
-	res.render("list", { listTitle: "Work List", listItems: workItems});
+    const item = new Item({
+        name: req.body.newItem
+    });
+
+    const listName = req.body.listName;
+
+    List.findOne({_id: req.body.listId}, (err, foundList) => {
+        if(err){
+            console.log(err);
+            return;
+        }
+
+        foundList.items.push(item);
+        foundList.save();
+        res.redirect("/" + listName);
+    });
 });
 
+app.post("/delete", (req, res) => {
+	const itemId = req.body.itemId;
+    const listId = req.body.listId;
+    const listName = req.body.listName;
+
+    List.findOne({_id: listId}, (err, foundList) => {
+        if(err){
+            console.log(err);
+            return;
+        }
+        console.log("Successfully deleted item: " + itemId);
+        foundList.items.id(itemId).remove();
+        foundList.save();
+        res.redirect("/" + listName);
+    });
+});
 
 app.get("/about", (req, res) => {
 	res.render("about");
