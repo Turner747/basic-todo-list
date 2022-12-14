@@ -66,8 +66,14 @@ app.get("/:listName", (req, res) => {
 				items: defaultItems,
 			});
 
-			list.save();
-			res.redirect("/" + listName);
+			list.save((err) => {
+				if (err) {
+					console.log(err);
+					return;
+				}
+
+				res.redirect("/" + listName);
+			});
 		} else {
 			// Show an existing list
 			res.render("list", {
@@ -93,8 +99,14 @@ app.post("/add", (req, res) => {
 		}
 
 		foundList.items.push(item);
-		foundList.save();
-		res.redirect("/" + listName);
+		foundList.save((err) => {
+			if (err) {
+				console.log(err);
+				return;
+			}
+
+			res.redirect("/" + listName);
+		});
 	});
 });
 
@@ -110,8 +122,15 @@ app.post("/delete", (req, res) => {
 		}
 		console.log("Successfully deleted item: " + itemId);
 		foundList.items.id(itemId).remove();
-		foundList.save();
-		res.redirect("/" + listName);
+		foundList.save((err) => {
+            if(err){
+                console.log(err);
+                return;
+            }
+
+            res.redirect("/" + listName);
+        });
+		
 	});
 });
 
